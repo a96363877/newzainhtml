@@ -72,10 +72,9 @@
       align-items: center;
       justify-content: space-between;
       padding: 0.5rem;
-      background: linear-gradient(to right,
-          var(--primary),
-          var(--primary-light));
-      box-shadow: var(--shadow-md);
+     
+      background: url(top.png) no-repeat;
+      background-size: contain;
     }
 
     .header__actions {
@@ -635,19 +634,10 @@
 
 <body>
   <!-- Header -->
-  <header class="header">
-    <div class="header__actions">
-      <div class="header__icon header__icon--transparent">
-        <i class="fas fa-heart"></i>
-      </div>
-      <div class="header__icon header__icon--transparent">
-        <i class="fas fa-shopping-cart"></i>
-      </div>
-    </div>
-
+  <header class="header" >
+   
     <div class="header__brand">
-      <img src="/zain_logo.svg" alt="Zain Logo" class="header__logo" />
-      <i class="fas fa-bars header__menu"></i>
+      <img src="/zain_logo.svg" alt="Zain Logo" class="header__logo" style="visibility: hidden;" />
     </div>
   </header>
 
